@@ -11,9 +11,21 @@ if ( ! function_exists( 'mycred_get_badge_requirements' ) ) :
 	function mycred_get_badge_requirements( $post_id = NULL, $editor = false )
 	{
 		$req = (array) get_post_meta( $post_id, 'badge_requirements', true );
-		if ( $editor && empty( $req ) )
+		if ( $editor && (empty( $req ) || (!empty($req) && isset($req[0]) && empty($req[0])) ))
 			$req = array(
 				0 => array(
+					'type'      => '',
+					'reference' => '',
+					'amount'    => '',
+					'by'        => ''
+				),
+				1 => array(
+					'type'      => '',
+					'reference' => '',
+					'amount'    => '',
+					'by'        => ''
+				),
+				2 => array(
 					'type'      => '',
 					'reference' => '',
 					'amount'    => '',
@@ -159,45 +171,60 @@ if ( ! function_exists( 'mycred_check_if_user_gets_badge' ) ) :
 			// See if user already has badge
 			if ( mycred_get_user_meta( $user_id, 'mycred_badge' . $badge_id, '', true ) != '' ) continue;
 
-			$requirements = mycred_get_badge_requirements( $badge_id );
-			$needs = $requirements[0];
-
-			$mycred = mycred( $needs['type'] );
 			$mycred_log = $mycred->log_table;
 
-			if ( $needs['by'] == 'count' ) {
-				$select = 'COUNT( * )';
-				$amount = $needs['amount'];
+			$requirements = mycred_get_badge_requirements( $badge_id );
+
+			$result = array();
+			$amount = array();
+			foreach ( $requirements as $k => $needs ) {
+//				$needs = $requirements[0];
+
+				$mycred = mycred( $needs['type'] );
+
+				if ( $needs['by'] == 'count' ) {
+					$select = 'COUNT( * )';
+					$amount[$k] = $needs['amount'];
+				}
+				else {
+					$select = 'SUM( creds )';
+					$amount[$k] = $mycred->number( $needs['amount'] );
+				}
+
+				$result[$k] = $wpdb->get_var( $wpdb->prepare( "
+					SELECT {$select}
+					FROM {$mycred_log}
+					WHERE user_id = %d
+						AND ctype = %s
+						AND ref = %s;", $user_id, $needs['type'], $needs['reference'] ) );
+
+				// If this function is used by the mycred_add filter, we need to take into
+				// account the instance that we are currently being hooked into as the log entry
+				// will be added after this code has executed.
+
+				// In case we sum up, add the points the user will gain to the result
+				if ( ! isset( $request['done'] ) && $needs['by'] == 'sum' )
+					$result[$k] = $result[$k] + $request['amount'];
+
+				// Else if we add up, increment the count by the missing 1 entry.
+				elseif ( ! isset( $request['done'] ) && $needs['by'] == 'count' )
+					$result[$k] = $result[$k] + 1;
+
+				if ( $needs['by'] != 'count' )
+					$result[$k] = $mycred->number( $result[$k] );
 			}
-			else {
-				$select = 'SUM( creds )';
-				$amount = $mycred->number( $needs['amount'] );
+
+			$deserves = true;
+
+			foreach ( $result as $k => $v ) {
+				if($v < $amount[$k]){
+					$deserves = false;
+					break;
+				}
 			}
-
-			$result = $wpdb->get_var( $wpdb->prepare( "
-			SELECT {$select} 
-			FROM {$mycred_log} 
-			WHERE user_id = %d 
-				AND ctype = %s 
-				AND ref = %s;", $user_id, $needs['type'], $needs['reference'] ) );
-
-			// If this function is used by the mycred_add filter, we need to take into
-			// account the instance that we are currently being hooked into as the log entry
-			// will be added after this code has executed.
-
-			// In case we sum up, add the points the user will gain to the result
-			if ( ! isset( $request['done'] ) && $needs['by'] == 'sum' )
-				$result = $result + $request['amount'];
-
-			// Else if we add up, increment the count by the missing 1 entry.
-			elseif ( ! isset( $request['done'] ) && $needs['by'] == 'count' )
-				$result = $result + 1;
-
-			if ( $needs['by'] != 'count' )
-				$result = $mycred->number( $result );
 
 			// Got it!
-			if ( $result >= $amount ) {
+			if ( $deserves ) {
 				mycred_update_user_meta( $user_id, 'mycred_badge' . $badge_id, '', apply_filters( 'mycred_badge_user_value', 1, $user_id, $badge_id ) );
 			}
 
@@ -296,12 +323,14 @@ endif;
  * @version 1.0
  */
 if ( ! function_exists( 'mycred_get_badges' ) ) :
-	function mycred_get_badges()
+	function mycred_get_badges($ids = array())
 	{
 		global $wpdb;
 
+		$badgeIds = empty($ids) ? '1=1' : ('posts.ID IN (' . implode(',', $ids) . ')');
+
 		$badges = $wpdb->get_results( "
-			SELECT posts.ID, posts.post_title, req.meta_value AS requires, def.meta_value AS default_img, main.meta_value AS main_img 
+			SELECT posts.ID, posts.post_title, posts.post_content, req.meta_value AS requires, def.meta_value AS default_img, main.meta_value AS main_img
 			FROM {$wpdb->posts} posts 
 			INNER JOIN {$wpdb->postmeta} req 
 				ON ( posts.ID = req.post_id ) 
@@ -314,6 +343,7 @@ if ( ! function_exists( 'mycred_get_badges' ) ) :
 				AND req.meta_key = 'badge_requirements' 
 				AND def.meta_key = 'default_image' 
 				AND main.meta_key = 'main_image'
+				AND ".$badgeIds."
 			ORDER BY posts.post_date DESC;" );
 
 		return apply_filters( 'mycred_get_badges', $badges );
