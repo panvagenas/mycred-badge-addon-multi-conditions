@@ -165,13 +165,10 @@ if ( ! function_exists( 'mycred_check_if_user_gets_badge' ) ) :
 		if ( $user_id === NULL || empty( $badge_ids ) ) return;
 
 		global $wpdb;
-
 		foreach ( $badge_ids as $badge_id ) {
 
 			// See if user already has badge
 			if ( mycred_get_user_meta( $user_id, 'mycred_badge' . $badge_id, '', true ) != '' ) continue;
-
-			$mycred_log = $mycred->log_table;
 
 			$requirements = mycred_get_badge_requirements( $badge_id );
 
@@ -181,6 +178,7 @@ if ( ! function_exists( 'mycred_check_if_user_gets_badge' ) ) :
 //				$needs = $requirements[0];
 
 				$mycred = mycred( $needs['type'] );
+				$mycred_log = $mycred->log_table;
 
 				if ( $needs['by'] == 'count' ) {
 					$select = 'COUNT( * )';
@@ -193,7 +191,7 @@ if ( ! function_exists( 'mycred_check_if_user_gets_badge' ) ) :
 
 				$result[$k] = $wpdb->get_var( $wpdb->prepare( "
 					SELECT {$select}
-					FROM {$mycred_log}
+					FROM {$mycred->log_table}
 					WHERE user_id = %d
 						AND ctype = %s
 						AND ref = %s;", $user_id, $needs['type'], $needs['reference'] ) );

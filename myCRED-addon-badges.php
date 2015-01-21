@@ -52,7 +52,7 @@ if ( ! class_exists( 'myCRED_Badge_Module' ) ) {
 		 * @version 1.0
 		 */
 		public function module_pre_init() {
-			add_filter( 'mycred_add', array( $this, 'mycred_add' ), 99999, 3 );
+			add_filter( 'mycred_log_added', array( $this, 'mycred_add' ), 99999, 3 );
 		}
 
 		/**
