@@ -151,19 +151,17 @@ if ( ! class_exists( 'myCRED_Badge_Module' ) ) {
 				$users[] = $wpdb->get_col( apply_filters( 'mycred_assign_badge_sql', $sql, $badge_id ) );
 			}
 
-			$userIds = array_pop($users);
+			$userIds = array_pop( $users );
 
 			// Empty results = no one has earned this badge yet
 			if ( empty( $userIds ) ) {
 				wp_send_json_error( __( 'No users has yet earned this badge.', 'mycred' ) );
 			}
 
-			while(!empty($users)){
-				$usIds = array_pop($users);
-				$userIds = array_intersect($userIds, $usIds);
+			while ( ! empty( $users ) ) {
+				$usIds   = array_pop( $users );
+				$userIds = array_intersect( $userIds, $usIds );
 			}
-
-
 
 			// Assign badge
 			foreach ( $userIds as $user_id ) {
@@ -279,7 +277,8 @@ if ( ! class_exists( 'myCRED_Badge_Module' ) ) {
 				'public'          => false,
 				'has_archive'     => false,
 				'show_ui'         => true,
-				'show_in_menu'    => 'myCRED',
+				//'show_in_menu'    => 'myCRED',
+				'menu_icon'       => 'dashicons-awards',
 				'capability_type' => 'post',
 				'supports'        => array( 'title', 'editor', 'comments' )
 			);
@@ -301,12 +300,13 @@ if ( ! class_exists( 'myCRED_Badge_Module' ) ) {
 			);
 
 			register_taxonomy( 'mycred_badge-category', array( 'mycred_badge' ), array(
-				'hierarchical' => true,
-				'labels'       => $labels,
-				'show_ui'      => true,
-				'show_in_menu' => 'myCRED',
-				'query_var'    => true,
-				'rewrite'      => array( 'slug' => 'mycred_badge-category' ),
+				'hierarchical'      => true,
+				'labels'            => $labels,
+				'show_ui'           => true,
+				'show_in_nav_menus' => true,
+				'show_in_menu'      => 'myCRED',
+				'query_var'         => true,
+				'rewrite'           => array( 'slug' => 'mycred_badge-category' ),
 			) );
 		}
 
@@ -854,13 +854,15 @@ if ( ! class_exists( 'myCRED_Badge_Module' ) ) {
 			if ( ! isset( $_POST['mycred_badge'] ) || ! isset( $_POST['mycred-badge-edit'] ) || ! wp_verify_nonce( $_POST['mycred-badge-edit'], 'edit-mycred-badge' ) ) {
 				return;
 			}
-			$requirements = (array)$_POST['mycred_badge']['req'];
-			foreach ($requirements as $k => $req ) {
-				if(empty($req['amount'])) unset($requirements[$k]);
+			$requirements = (array) $_POST['mycred_badge']['req'];
+			foreach ( $requirements as $k => $req ) {
+				if ( empty( $req['amount'] ) ) {
+					unset( $requirements[ $k ] );
+				}
 			}
 
-			if(empty($requirements)){
-				$requirements =array(
+			if ( empty( $requirements ) ) {
+				$requirements = array(
 					array(
 						'type'      => '',
 						'reference' => '',
