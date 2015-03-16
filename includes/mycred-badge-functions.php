@@ -56,9 +56,13 @@ if ( ! function_exists( 'mycred_display_badge_requirement' ) ) :
 
 			$types = mycred_get_types();
 			$references = mycred_get_all_references();
+			$req_count = count( $requirements );
 
 			$output = array();
-			foreach ( $requirements as $row => $needs ) {
+			foreach ( $requirements as $level => $needs ) {
+
+				if ( $needs['type'] == '' )
+					$needs['type'] = 'mycred_default';
 
 				if ( ! isset( $types[ $needs['type'] ] ) )
 					continue;
@@ -72,12 +76,12 @@ if ( ! function_exists( 'mycred_display_badge_requirement' ) ) :
 					$ref = $references[ $needs['reference'] ];
 
 				if ( $needs['by'] == 'count' )
-					$output[] = sprintf( _x( '%s for %s %s', '"Points" for "reference" "x time(s)"', 'mycred' ), $point_type, $ref, _n( 'never', '1 time', '%d times', $needs['amount'], 'mycred' ) );
+					$output[] = sprintf( _x( '%s for %s %s', '"Points" for "reference" "x time(s)"', 'mycred' ), $point_type, $ref, sprintf( _n( '1 time', '%d times', $needs['amount'], 'mycred' ), $needs['amount'] ) );
 				else
 					$output[] = sprintf( _x( '%s for %s in total', '"x points" for "reference" in total', 'mycred' ), $mycred->format_creds( $needs['amount'] ), $ref );
 
 			}
-			$reply = implode( $sep, $output ) . '.';
+			$reply = implode( $sep, $output );
 
 		}
 
